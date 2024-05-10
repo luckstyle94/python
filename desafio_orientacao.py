@@ -30,7 +30,7 @@ class Conta:
         self._agencia = "0001"
         self._cliente = cliente
         self._historico = Historico()
-        self._acc_special = acc_special()
+        self._acc_special = acc_special
 
     @classmethod
     def nova_conta(cls, cliente, numero, acc_special):
@@ -62,9 +62,14 @@ class Conta:
 
     def sacar(self, valor):
         saldo = self.saldo
+        acc_special = self.acc_special
         excedeu_saldo = valor > saldo
+        saque_especial = valor > saldo and acc_special
 
-        if excedeu_saldo:
+        if saque_especial and not saldo - valor >= -1000:
+            print("\n@@@ Operação falhou! Você atingiu o limite negativo! @@@")
+
+        elif excedeu_saldo and not saque_especial:
             print("\n@@@ Operação falhou! Você não tem saldo suficiente. @@@")
 
         elif valor > 0:
@@ -89,8 +94,8 @@ class Conta:
 
 
 class ContaCorrente(Conta):
-    def __init__(self, numero, cliente, limite=500, limite_saques=3):
-        super().__init__(numero, cliente)
+    def __init__(self, numero, cliente, acc_special, limite=500, limite_saques=3):
+        super().__init__(numero, cliente, acc_special)
         self._limite = limite
         self._limite_saques = limite_saques
 
@@ -118,6 +123,7 @@ class ContaCorrente(Conta):
             Agência:\t{self.agencia}
             C/C:\t\t{self.numero}
             Titular:\t{self.cliente.nome}
+            Conta Especial:\t{self.acc_special}
         """
 
 
@@ -134,7 +140,7 @@ class Historico:
             {
                 "tipo": transacao.__class__.__name__,
                 "valor": transacao.valor,
-                "data": datetime.now().strftime("%d-%m-%Y %H:%M:%s"),
+                "data": datetime.now().strftime("%d-%m-%Y %H:%M:%S"),
             }
         )
 
@@ -198,8 +204,12 @@ def filtrar_cliente(cpf, clientes):
     clientes_filtrados = [cliente for cliente in clientes if cliente.cpf == cpf]
     return clientes_filtrados[0] if clientes_filtrados else None
 
+def filtrar_conta(numero, contas):
+    contas_filtradas = [conta for conta in contas if conta.numero == numero]
+    return contas_filtradas[0] if contas_filtradas else None
 
 def recuperar_conta_cliente(cliente):
+
     if not cliente.contas:
         print("\n@@@ Cliente não possui conta! @@@")
         return
@@ -240,9 +250,8 @@ def sacar(clientes):
     conta = recuperar_conta_cliente(cliente)
     if not conta:
         return
-
+    
     cliente.realizar_transacao(conta, transacao)
-
 
 def exibir_extrato(clientes):
     cpf = input("Informe o CPF do cliente: ")
@@ -290,7 +299,7 @@ def criar_cliente(clientes):
     print("\n=== Cliente criado com sucesso! ===")
 
 
-def criar_conta(numero_conta, clientes, contas, acc_special):
+def criar_conta(numero_conta, clientes, contas):
     cpf = input("Informe o CPF do cliente: ")
     cliente = filtrar_cliente(cpf, clientes)
 
@@ -298,7 +307,15 @@ def criar_conta(numero_conta, clientes, contas, acc_special):
         print("\n@@@ Cliente não encontrado, fluxo de criação de conta encerrado! @@@")
         return
     
-    acc_special = input("Conta especial?: ")
+    acc_special = input("Conta especial? Sim / Não: ")
+    if acc_special == "Sim":
+        acc_special = True
+    elif acc_special == "Não":
+        acc_special = False
+    else:
+        print("\n@@@ Opção inválida @@@")
+        return
+    
     conta = ContaCorrente.nova_conta(cliente=cliente, numero=numero_conta, acc_special=acc_special)
     contas.append(conta)
     cliente.contas.append(conta)
@@ -333,8 +350,7 @@ def main():
 
         elif opcao == "5":
             numero_conta = len(contas) + 1
-            acc_special = ""
-            criar_conta(numero_conta, clientes, contas, acc_special)
+            criar_conta(numero_conta, clientes, contas)
 
         elif opcao == "6":
             listar_contas(contas)
